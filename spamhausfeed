@@ -1,0 +1,179 @@
+#! /usr/bin/perl
+
+use strict;
+use IO::Socket;
+use Fcntl;
+require "sys/ioctl.ph";
+
+my $logfile = "/srv/log/exim/mainlog";
+
+my $pidfile = "/var/run/spamhausfeed.pid"; # or undef for no pidfile
+
+my @ourhosts = ( qr/^10\.10\./,
+                 qr/^2001:df8:/,
+               );
+
+my @ourhelos = ( qr/(^|\.)camford\.ac\.uk$/,
+                 qr/^\[10\.10\.\d+\.\d+\]$/,
+               );
+
+my $desthost = "";
+my $destport = "";
+
+my $delay = 1; # seconds to delay between trying to read
+my $checkinode = 5; # number of null-reads before checking inode change
+
+
+#-----------------------------
+
+my $fh = undef;
+my $pos;
+my $inode = 0;
+my $huprecvd = 0;
+my $termrecvd = 0;
+
+my $socket = IO::Socket::INET->new(Proto => "udp",
+                                   PeerAddr => $desthost,
+                                   PeerPort => $destport)
+  or die "unable to create UDP socket: $@";
+
+daemonise($pidfile);
+
+$SIG{TERM} = sub { $termrecvd = 1; };
+$SIG{HUP} = sub { $huprecvd = 1; };
+
+my $nullreadcount = 0;
+
+while (!$termrecvd) {
+
+  unless (defined($fh)) {
+    open $fh, "<", $logfile;
+    jumptoend($fh);
+    $inode = (stat($fh))[1];
+  }
+
+  my $linecount = 0;
+  $pos = tell($fh);  
+
+  READLOOP: while (my $line = <$fh>) {
+
+# check to see if we only received part of a line; if so, back up and wait
+    if ($line !~ /\n$/) {
+      seek($fh, 0, $pos);
+      last READLOOP;
+    }
+
+    $linecount++;
+    next READLOOP
+      unless $line =~ /SHF: ([^\t]+) \t (.*) \t ([^\t]+) \t ([^\t]*)\n/x;
+
+    my ($ip, $helo, $time, $rdns) = ($1, $2, $3, $4);
+
+# skip records where the IP address is one of our own
+    foreach my $re (@ourhosts) {
+      next READLOOP if $ip =~ $re;
+    }
+
+# munge records where the HELO is one of our own, but the IP is not
+    foreach my $re (@ourhelos) {
+      if ($helo =~ $re) {
+        ($ip, $helo, $time, $rdns) = ($ip, "**FORCE_LOC", $time, $helo);
+        last;
+      }
+    }
+
+    transmit($socket, $ip, $helo, $time, $rdns);
+  }
+
+  $nullreadcount += $linecount ? 0 : 1;
+
+  if ($nullreadcount > $checkinode) {
+
+# nothing has been read for $checkinode iterations; maybe the logfile rotated?
+    if ((stat($logfile))[1] != $inode) {
+      $huprecvd = 1;
+    }
+
+    $nullreadcount = 0;
+  }
+
+# TERM/HUP signals will interrupt this
+  sleep $delay;
+
+# HUP causes the logfile to be closed (and therefore reopened)
+  if ($huprecvd) {
+    $huprecvd = 0;
+    close ($fh);
+    $fh = undef;
+  }
+}
+
+if (defined $pidfile) {
+  unlink $pidfile;
+}
+
+#-----------------------------
+
+
+sub jumptoend
+{
+  my $fh = shift;
+
+  seek($fh, -10000, 2);
+  my $pos = tell($fh);
+  my $opos;
+
+  while (my $line = <$fh>) {
+    $opos = $pos;
+    $pos = tell($fh);
+  }
+
+  seek($fh, $opos, 0);
+}
+
+
+sub daemonise
+{
+  my $pidfile = shift;
+  my $pfh;
+
+  if (defined $pidfile) {
+    open $pfh, ">", $pidfile || die "unable to open pidfile";
+  }
+
+  local *TT;
+  exit if fork();
+  setpgrp(0,0);
+  if (sysopen(TT, "/dev/tty", O_RDWR)) {
+    ioctl TT, TIOCNOTTY(), 0;
+    close TT;
+  }
+  exit if fork();
+  chdir "/";
+
+  if (defined $pidfile) {
+    print $pfh "$$";
+    close $pfh;
+  }
+
+  open STDIN, "< /dev/null";
+  open STDOUT, "> /dev/null";
+  open STDERR, "> /dev/null";
+}
+
+
+
+sub transmit
+{
+  my ($socket, $ip, $helo, $time, $rdns) = @_;
+
+# translate non-printable chars in HELO string
+  $helo =~ s/ ([ \000-\040 \177-\377 ]) / sprintf("\\x%02x", ord($1)) /gex;
+
+  $socket->send("$ip\t$helo\t$time\t$rdns\n");
+
+  open OF, ">>", "/tmp/testout";
+  print OF "$ip\t$helo\t$time\t$rdns\n";
+  close OF;
+}
+
