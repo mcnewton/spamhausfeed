@@ -1,0 +1,92 @@
+Spamhaus/JANET feed reporter
+============================
+
+This is a basic perl script to extract HELO information from mail
+server logs and send it to the JANET slurper, ready to push over
+to Spamhaus. It's intended as a stopgap solution for Exim until
+Tony Finch's udpsend patch is readily available in distributions,
+but could be used for other mail servers.
+
+It tails the mailserver log file to look for specific patterns
+that contain the required information. This means that the
+mailserver has to be configured to output that pattern. An
+example for exim is given below.
+
+The pattern is:
+
+<random data>SHF:sender_ip<tab>HELO string<tab>timestamp<tab>RDNS\n
+
+It's expected that <random data> is the log timestamp. Exim can
+generate this format in its mainlog with the following; it should
+be added at the top of the HELO ACL, before any connections have
+been rejected:
+
+--8<-----
+acl_helo:
+
+  warn
+#   hosts    = ! +relay_hosts
+    logwrite = SHF:$sender_host_address\t$sender_helo_name\t$tod_epoch\t$sender_host_name
+--8<-----
+
+The "hosts" line is optional - it is a good idea to remove local
+IP addresses here to save them going into the log, but otherwise
+the script will strip them out.
+
+
+Having configured the mail logs and checked that SHF: lines are
+appearing, the daemon can be installed and configured.
+spamhausfeed should be copied to /usr/local/sbin, and the few
+variables at the top should be adjusted for your own situation.
+The JANET reporter hostname and port should be set.
+
+ - set the location of the exim mainlog*
+
+ - adjust the pidfile if necessary (also in the init script)
+
+ - add regular expressions to match your local networks, as these
+   should not be reported
+
+ - add regular expressions to match your local domains that should
+   not be seen in HELO strings from remote mailers
+
+ - set JANET reporter hostname and port
+
+* if you use exim logfiles in the form mainlog-YYYYMMDD (which I
+highly recommend) then you should have a cronjob that points a
+symlink to the latest logfile each night; then point this script
+at the symlink. An example script that does this is:
+
+--8<-----
+#! /bin/sh
+# new extension of file is hostname-YYYYMMDD
+NE=`hostname -s`-`date +%Y%m%d`
+ln -fs /srv/log/exim/main-$NE /srv/log/exim/mainlog
+ln -fs /srv/log/exim/reject-$NE /srv/log/exim/rejectlog
+--8<-----
+
+Finally, install the init script as /etc/init.d/spamhausfeed, or
+wherever your system requires it, and run, for example:
+
+  insserv -vd spamhausfeed
+
+to get the daemon started at boot. Then fire it up.
+
+To check that things are running you can use tcpdump:
+
+  tcpdump -nvi eth0 -- host report.dnsbl.ja.net
+
+or edit the script to send to localhost, then use netcat to
+listen:
+
+  nc -lup 1387
+
+When all is sending fine, notify JANET to get your feed checked
+and added to the Spamhaus data.
+
+
+Matthew Newton
+University of Leicester
+2013-03-26
+
+$Id$

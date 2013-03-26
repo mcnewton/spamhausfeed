@@ -1,0 +1,64 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          spamhausfeed
+# Required-Start:    $network exim4
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop Spamhaus feedback
+# Description:       Start/stop Spamhaus feedback
+### END INIT INFO
+
+# $Id$
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/local/sbin/spamhausfeed
+NAME=spamhausfeed
+SNAME=spamhausfeed
+DESC="Spamhaus feedback daemon"
+PIDFILE="/var/run/$NAME.pid"
+PNAME="spamhausfeed"
+
+test -f $DAEMON || exit 0
+
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	start-stop-daemon --start --pidfile $PIDFILE --name $PNAME \
+	    $NICE --oknodo --startas $DAEMON -- $OPTIONS $DOPTIONS
+	echo "$NAME."
+	;;
+
+  stop)
+	echo -n "Stopping $DESC: "
+	start-stop-daemon --stop --pidfile $PIDFILE --name $PNAME --oknodo
+	echo "$NAME."
+	;;
+
+  reload|force-reload)
+	echo -n "Reloading $DESC: "
+	start-stop-daemon --stop --pidfile $PIDFILE --signal HUP --name $PNAME
+	echo "$NAME."
+	;;
+
+  restart)
+	echo -n "Restarting $DESC: "
+	start-stop-daemon --stop --pidfile $PIDFILE --name $PNAME \
+	    --retry 5 --oknodo
+	start-stop-daemon --start --pidfile $PIDFILE --name $PNAME \
+	    $NICE --oknodo --startas $DAEMON -- $OPTIONS $DOPTIONS
+
+	echo "$NAME."
+	;;
+
+  *)
+	N=/etc/init.d/$SNAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0

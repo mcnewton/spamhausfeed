@@ -1,9 +1,19 @@
 #! /usr/bin/perl
 
+# Spamhaus/JANET feed pusher
+# Matthew Newton
+# University of Leicester
+#
+# $Id$
+
 use strict;
 use IO::Socket;
 use Fcntl;
 require "sys/ioctl.ph";
+
+
+# Change the following variables to match your site
+#--------------------------------------------------
 
 my $logfile = "/srv/log/exim/mainlog";
 
@@ -17,14 +27,23 @@ my @ourhelos = ( qr/(^|\.)camford\.ac\.uk$/,
                  qr/^\[10\.10\.\d+\.\d+\]$/,
                );
 
+
+# set JANET reporter address and port
+
 my $desthost = "";
 my $destport = "";
+
+
+# It is unlikely you will need to change the below, except
+# maybe for debugging
+#---------------------------------------------------------
 
 my $delay = 1; # seconds to delay between trying to read
 my $checkinode = 5; # number of null-reads before checking inode change
 
 
-#-----------------------------
+# Don't touch anything below here
+#--------------------------------
 
 my $fh = undef;
 my $pos;
@@ -58,10 +77,12 @@ while (!$termrecvd) {
   READLOOP: while (my $line = <$fh>) {
 
 # check to see if we only received part of a line; if so, back up and wait
+# very unlikely this will happen
     if ($line !~ /\n$/) {
       seek($fh, 0, $pos);
       last READLOOP;
     }
+    $pos = tell($fh);  
 
     $linecount++;
     next READLOOP
@@ -172,8 +193,8 @@ sub transmit
 
   $socket->send("$ip\t$helo\t$time\t$rdns\n");
 
-  open OF, ">>", "/tmp/testout";
-  print OF "$ip\t$helo\t$time\t$rdns\n";
-  close OF;
+#  open OF, ">>", "/tmp/spamhausfeed.test.out";
+#  print OF "$ip\t$helo\t$time\t$rdns\n";
+#  close OF;
 }
 
