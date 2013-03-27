@@ -4,7 +4,7 @@
 # Matthew Newton
 # University of Leicester
 #
-# $Id$
+# $Format:%H% d$
 
 use strict;
 use IO::Socket;

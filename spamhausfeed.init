@@ -10,7 +10,7 @@
 # Description:       Start/stop Spamhaus feedback
 ### END INIT INFO
 
-# $Id$
+# $Format:%H% d$
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/local/sbin/spamhausfeed
