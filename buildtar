@@ -1,0 +1,17 @@
+#! /bin/sh
+
+NAME=spamhausfeed
+VER="$1"
+
+if [ -z "$VER" ]; then
+  echo "Syntax: $0 <version>"
+  exit 1
+fi
+
+FILES=""
+FILES="$FILES README"
+FILES="$FILES spamhausfeed"
+FILES="$FILES spamhausfeed.init"
+
+git tag $VER && tar zcf $NAME-$VER.tar.gz $FILES
+
