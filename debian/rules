@@ -3,69 +3,61 @@
 # spamhausfeed debian/rules
 # Matthew Newton
 
-%:
-	dh $@
+#export DH_VERBOSE=1
 
-##export DH_VERBOSE=1
-#
-#.NOTPARALLEL:
-#
-#patch: patch-stamp
-#patch-stamp:
-#
-#unpatch:
-#
-#configure: configure-stamp
-#configure-stamp: patch
-#	dh_testdir
-#	touch configure-stamp
-#
-#build: build-indep
-#build-indep:
-#
-#install: install-indep
-#
-#install-indep: build-indep install-uol-exim-config
-#
-#install-uol-exim-config:
-#	dh_testdir
-#	dh_testroot
-#	dh_prep
-#	dh_installdirs
-#
-#	cp bin/* debian/uol-exim-config/srv/exim/bin/
-#	cp usrbin/* debian/uol-exim-config/usr/bin/
-#	cp etc/* debian/uol-exim-config/srv/exim/etc/
-#	cp -r tables/* debian/uol-exim-config/srv/exim/tables/
-#	cp doc/* debian/uol-exim-config/usr/share/doc/uol-exim-config/
-#
-#	cp certs/servers/* debian/uol-exim-config/srv/exim/certs/servers/
-#	cp certs/verify/* debian/uol-exim-config/srv/exim/certs/verify/
-#	cp certs/dkim/* debian/uol-exim-config/srv/exim/certs/dkim/
-#
-#	chmod 755 debian/uol-exim-config/srv/exim/bin/*
-#	chmod 400 debian/uol-exim-config/srv/exim/certs/servers/*
-#
-#binary: binary-indep
-#binary-indep: install-indep
-#	dh_testdir
-#	dh_testroot
-#	dh_installdocs
-#	dh_installcron
-#	dh_installchangelogs
-#	dh_link
-#	dh_compress
-#	dh_fixperms
-#	dh_installdeb
-#	dh_gencontrol
-#	dh_md5sums
-#	dh_builddeb
-#
-#clean: clean1 unpatch
-#clean1:
-#	dh_testdir
-#	dh_testroot
-#	rm -f build-indep-stamp configure-stamp
-#	dh_clean
-#
-#.PHONY: patch unpatch configure build build-indep install install-indep install-uol-exim-config binary binary-indep clean clean1
+.NOTPARALLEL:
+
+patch: patch-stamp
+patch-stamp:
+
+unpatch:
+
+configure: configure-stamp
+configure-stamp: patch
+	dh_testdir
+	touch configure-stamp
+
+build: build-indep
+build-indep:
+
+install: install-indep
+
+install-indep: build-indep install-spamhausfeed
+
+install-spamhausfeed:
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+	dh_installinit
+
+	cp spamhausfeed debian/spamhausfeed/usr/bin/
+	cp spamhausfeed.conf debian/spamhausfeed/etc/
+
+	chmod 755 debian/spamhausfeed/usr/bin/*
+	chmod 640 debian/spamhausfeed/etc/*
+
+binary: binary-indep
+binary-indep: install-indep
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installcron
+	dh_installchangelogs
+	dh_link
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+clean: clean1 unpatch
+clean1:
+	dh_testdir
+	dh_testroot
+	rm -f build-indep-stamp configure-stamp
+	dh_clean
+
+.PHONY: patch unpatch configure build build-indep install install-indep install-spamhausfeed binary binary-indep clean clean1
+
