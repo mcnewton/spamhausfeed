@@ -34,8 +34,38 @@ IP addresses here to save them going into the log, but otherwise
 the script will strip them out.
 
 
+Testing
+-------
+
 Having configured the mail logs and checked that SHF: lines are
-appearing, the daemon can be installed and configured.
+appearing, the daemon can be tested.
+
+First, open a terminal on the mail system and run either tcpdump
+or netcat to see the received packets, for example:
+
+  tcpdump -Xnvi lo -- udp dst port 9999
+
+or
+
+  nc -l -u -p 9999
+
+Secondly, invoke spamhausfeed in debug mode to test:
+
+  ./spamhausfeed -l /srv/log/exim/mainlog -d localhost -p 9999 -D
+
+Note that if you are monitoring using tcpdump and nothing is
+listening on the destination port, you are likely to see
+'Connection refused' errors. This is not a problem for testing as
+long as you see the packets being sent.
+
+For each 'SHF' line appearing in the log file, you should see a
+"read" and a "sending" debug line.
+
+
+Installing
+----------
+
+
 spamhausfeed should be copied to /usr/local/sbin, and the few
 variables at the top should be adjusted for your own situation.
 The JANET reporter hostname and port should be set.
