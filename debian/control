@@ -1,0 +1,13 @@
+Source: spamhausfeed
+Section: mail
+Priority: optional
+Maintainer: Matthew Newton <mcn4@le.ac.uk>
+Build-Depends:
+Standards-Version: 3.7.2
+
+Package: spamhausfeed
+Architecture: all
+Depends: perl
+Description: JANET Spamhaus Feed
+ Feeds e-mail connection data to JANET for feedback into the Spamhaus
+ block lists.
