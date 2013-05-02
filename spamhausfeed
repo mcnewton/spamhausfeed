@@ -17,7 +17,7 @@ require "sys/ioctl.ph";
 # Set defaults for configuration
 
 our $configfile = "/etc/spamhausfeed.conf";
-our $logfile = "/var/log/exim4/mainlog";
+our $logfile = undef;
 our $pidfile = "/var/run/spamhausfeed.pid";
 our @ourhosts = ( );
 our @ourhelos = ( );
@@ -45,7 +45,7 @@ syntax(1) if $ARGV[0];
 if (-r $configfile) {
   require $configfile;
 } else {
-  die "cannot read config file $configfile\n";
+  warn "cannot read config file '$configfile'\n" if $debug;
 }
 
 $desthost = $options{d} if defined $options{d};
@@ -66,7 +66,8 @@ if (defined $options{D}) {
 
 die "error: destination host is not defined\n" unless defined $desthost;
 die "error: destination port is not defined\n" unless defined $destport;
-die "error: unable to read $logfile\n" unless -r $logfile;
+die "error: log file is not defined\n" unless defined $logfile;
+die "error: unable to read log file '$logfile'\n" unless -r $logfile;
 
 
 ######################################################################
@@ -83,7 +84,7 @@ unless ($dryrun) {
   $socket = IO::Socket::INET->new(Proto => "udp",
                                   PeerAddr => $desthost,
                                   PeerPort => $destport)
-    or die "unable to create UDP socket: $@";
+    or die "unable to create UDP socket: $@\n";
 }
 
 
