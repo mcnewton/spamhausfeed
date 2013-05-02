@@ -31,10 +31,10 @@ install-spamhausfeed:
 	dh_installdirs
 	dh_installinit
 
-	cp spamhausfeed debian/spamhausfeed/usr/bin/
+	cp spamhausfeed debian/spamhausfeed/usr/sbin/
 	cp spamhausfeed.conf debian/spamhausfeed/etc/
 
-	chmod 755 debian/spamhausfeed/usr/bin/*
+	chmod 755 debian/spamhausfeed/usr/sbin/*
 	chmod 640 debian/spamhausfeed/etc/*
 
 binary: binary-indep

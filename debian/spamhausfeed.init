@@ -13,7 +13,7 @@
 # $Format:%H% d$
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/usr/bin/spamhausfeed
+DAEMON=/usr/sbin/spamhausfeed
 NAME=spamhausfeed
 SNAME=spamhausfeed
 DESC="Spamhaus feedback daemon"
