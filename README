@@ -114,6 +114,18 @@ When all is sending fine, notify JANET to get your feed checked
 and added to the Spamhaus data.
 
 
+Building Debian package
+-----------------------
+
+Edit the spamhausfeed.conf file to suit your local site, then
+build the package as normal, for example:
+
+  dpkg-buildpackage -us -uc -rfakeroot
+
+Then install on the mail servers. Remember to add the SHF lines to
+the mail logs as well.
+
+
 Matthew Newton
 University of Leicester
 2013-05-02
