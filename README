@@ -5,7 +5,8 @@ This is a basic perl script to extract HELO information from mail
 server logs and send it to the JANET slurper, ready to push over
 to Spamhaus. It's intended as a stopgap solution for Exim until
 Tony Finch's udpsend patch is readily available in distributions,
-but could be used for other mail servers.
+but could be used for other mail servers that can write arbitrary
+information into their log files.
 
 It tails the mailserver log file to look for specific patterns
 that contain the required information. This means that the
@@ -31,7 +32,8 @@ acl_helo:
 
 The "hosts" line is optional - it is a good idea to remove local
 IP addresses here to save them going into the log, but otherwise
-the script will strip them out.
+the script will strip them out given a correctly configured
+@ourhosts.
 
 
 Testing
@@ -65,17 +67,18 @@ For each 'SHF' line appearing in the log file, you should see a
 Installing
 ----------
 
-
-spamhausfeed should be copied to /usr/local/sbin, and the few
-variables at the top should be adjusted for your own situation.
-The JANET reporter hostname and port should be set.
+The spamhausfeed script should be copied to /usr/local/sbin, and
+spamhausfeed.conf to /etc with the few settings being adjusted for
+your own situation.
 
  - set the location of the exim mainlog*
 
- - adjust the pidfile if necessary (also in the init script)
+ - adjust the pidfile if necessary (adjust also the init script)
 
  - add regular expressions to match your local networks, as these
-   should not be reported
+   should not be reported. This possibly also includes outsourced
+   remote systems that relay mail via your servers, depending on
+   your circumstances.
 
  - add regular expressions to match your local domains that should
    not be seen in HELO strings from remote mailers
@@ -95,6 +98,7 @@ ln -fs /srv/log/exim/main-$NE /srv/log/exim/mainlog
 ln -fs /srv/log/exim/reject-$NE /srv/log/exim/rejectlog
 --8<-----
 
+
 Finally, install the init script as /etc/init.d/spamhausfeed, or
 wherever your system requires it, and run, for example:
 
@@ -102,14 +106,9 @@ wherever your system requires it, and run, for example:
 
 to get the daemon started at boot. Then fire it up.
 
-To check that things are running you can use tcpdump:
+To check that things are running, use tcpdump such as follows:
 
-  tcpdump -nvi eth0 -- host report.dnsbl.ja.net
-
-or edit the script to send to localhost, then use netcat to
-listen:
-
-  nc -lup 1387
+  tcpdump -Xnvi eth0 -- udp and host reporting-host.example
 
 When all is sending fine, notify JANET to get your feed checked
 and added to the Spamhaus data.
@@ -117,6 +116,6 @@ and added to the Spamhaus data.
 
 Matthew Newton
 University of Leicester
-2013-03-26
+2013-05-02
 
 $Format:%H% d$
