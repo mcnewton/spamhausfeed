@@ -117,13 +117,14 @@ and added to the Spamhaus data.
 Building Debian package
 -----------------------
 
-Edit the spamhausfeed.conf file to suit your local site, then
-build the package as normal, for example:
+Edit the spamhausfeed.conf file to suit your local site and update
+debian/changelog (e.g. with dch) to indicate your local revisions.
+Then build the package as normal, for example:
 
   dpkg-buildpackage -us -uc -rfakeroot
 
-Then install on the mail servers. Remember to add the SHF lines to
-the mail logs as well.
+Remember to add the SHF lines to the mail logs as well as
+installing the package.
 
 
 Matthew Newton
