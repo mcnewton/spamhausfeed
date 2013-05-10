@@ -9,57 +9,95 @@
 use strict;
 use IO::Socket;
 use Fcntl;
+use Getopt::Std;
 require "sys/ioctl.ph";
 
 
-# Change the following variables to match your site
-#--------------------------------------------------
+######################################################################
+# Set defaults for configuration
 
-my $logfile = "/srv/log/exim/mainlog";
+our $configfile = "/etc/spamhausfeed.conf";
+our $logfile = "/var/log/exim4/mainlog";
+our $pidfile = "/var/run/spamhausfeed.pid";
+our @ourhosts = ( );
+our @ourhelos = ( );
+our $desthost = undef;
+our $destport = undef;
+our $delay = 1; # seconds to delay between trying to read
+our $checkinode = 5; # number of null-reads before checking inode change
 
-my $pidfile = "/var/run/spamhausfeed.pid"; # or undef for no pidfile
-
-my @ourhosts = ( qr/^10\.10\./,
-                 qr/^2001:df8:/,
-               );
-
-my @ourhelos = ( qr/(^|\.)camford\.ac\.uk$/,
-                 qr/^\[10\.10\.\d+\.\d+\]$/,
-               );
-
-
-# set JANET reporter address and port
-
-my $desthost = "";
-my $destport = "";
+our $foreground = 0;
+our $debug = 0;
+our $dryrun = 0;
 
 
-# It is unlikely you will need to change the below, except
-# maybe for debugging
-#---------------------------------------------------------
+######################################################################
+# Get options - config file is printed in help, so read that before
+# processing the -h option
 
-my $delay = 1; # seconds to delay between trying to read
-my $checkinode = 5; # number of null-reads before checking inode change
+my %options = ();
+getopts("hc:d:p:l:P:Dfn", \%options);
+$configfile = $options{c} if defined $options{c};
+syntax(0) if defined $options{h};
+
+syntax(1) if $ARGV[0];
+
+if (-r $configfile) {
+  require $configfile;
+} else {
+  die "cannot read config file $configfile\n";
+}
+
+$desthost = $options{d} if defined $options{d};
+$destport = $options{p} if defined $options{p};
+$logfile = $options{l} if defined $options{l};
+$pidfile = $options{P} if defined $options{P};
+
+$foreground = 1 if defined $options{f};
+$dryrun = 1 if defined $options{n};
+if (defined $options{D}) {
+  $foreground = 1;
+  $debug = 1;
+}
 
 
-# Don't touch anything below here
-#--------------------------------
+######################################################################
+# Check important options are set
+
+die "error: destination host is not defined\n" unless defined $desthost;
+die "error: destination port is not defined\n" unless defined $destport;
+die "error: unable to read $logfile\n" unless -r $logfile;
+
+
+######################################################################
+# Set up variables, and open UDP socket
 
 my $fh = undef;
 my $pos;
 my $inode = 0;
 my $huprecvd = 0;
 my $termrecvd = 0;
+my $socket;
 
-my $socket = IO::Socket::INET->new(Proto => "udp",
-                                   PeerAddr => $desthost,
-                                   PeerPort => $destport)
-  or die "unable to create UDP socket: $@";
+unless ($dryrun) {
+  $socket = IO::Socket::INET->new(Proto => "udp",
+                                  PeerAddr => $desthost,
+                                  PeerPort => $destport)
+    or die "unable to create UDP socket: $@";
+}
 
-daemonise($pidfile);
+
+######################################################################
+# Deamonise, and set up signals
+
+daemonise($pidfile) unless $foreground;
 
 $SIG{TERM} = sub { $termrecvd = 1; };
 $SIG{HUP} = sub { $huprecvd = 1; };
+
+
+######################################################################
+# Main loop - tail log file and process accordingly
 
 my $nullreadcount = 0;
 
@@ -76,8 +114,8 @@ while (!$termrecvd) {
 
   READLOOP: while (my $line = <$fh>) {
 
-# check to see if we only received part of a line; if so, back up and wait
-# very unlikely this will happen
+# Check to see if we only received part of a line; if so, back up
+# and wait - it's very unlikely this will happen
     if ($line !~ /\n$/) {
       seek($fh, 0, $pos);
       last READLOOP;
@@ -88,14 +126,16 @@ while (!$termrecvd) {
     next READLOOP
       unless $line =~ /SHF: ([^\t]+) \t (.*) \t ([^\t]+) \t ([^\t]*)\n/x;
 
+    print "read: $line" if $debug;
+
     my ($ip, $helo, $time, $rdns) = ($1, $2, $3, $4);
 
-# skip records where the IP address is one of our own
+# Skip records where the IP address is one of our own
     foreach my $re (@ourhosts) {
       next READLOOP if $ip =~ $re;
     }
 
-# munge records where the HELO is one of our own, but the IP is not
+# Munge records where the HELO is one of our own, but the IP is not
     foreach my $re (@ourhelos) {
       if ($helo =~ $re) {
         ($ip, $helo, $time, $rdns) = ($ip, "**FORCE_LOC", $time, $helo);
@@ -103,6 +143,7 @@ while (!$termrecvd) {
       }
     }
 
+# Send UDP packet
     transmit($socket, $ip, $helo, $time, $rdns);
   }
 
@@ -110,7 +151,7 @@ while (!$termrecvd) {
 
   if ($nullreadcount > $checkinode) {
 
-# nothing has been read for $checkinode iterations; maybe the logfile rotated?
+# Nothing has been read for $checkinode iterations; maybe the logfile rotated?
     if ((stat($logfile))[1] != $inode) {
       $huprecvd = 1;
     }
@@ -129,9 +170,16 @@ while (!$termrecvd) {
   }
 }
 
+
+######################################################################
+# Tidy up before exit
+
 if (defined $pidfile) {
   unlink $pidfile;
 }
+
+exit;
+
 
 #-----------------------------
 
@@ -187,14 +235,46 @@ sub daemonise
 sub transmit
 {
   my ($socket, $ip, $helo, $time, $rdns) = @_;
+  my $rc;
+  my $str;
 
 # translate non-printable chars in HELO string
   $helo =~ s/ ([ \000-\040 \177-\377 ]) / sprintf("\\x%02x", ord($1)) /gex;
 
-  $socket->send("$ip\t$helo\t$time\t$rdns\n");
+  $str = "$ip\t$helo\t$time\t$rdns\n";
 
-#  open OF, ">>", "/tmp/spamhausfeed.test.out";
-#  print OF "$ip\t$helo\t$time\t$rdns\n";
-#  close OF;
+  print "(dryrun) " if $dryrun;
+  print "sending: $str" if $debug;
+
+  if (!$dryrun) {
+    my $retry = 3;
+    while ($retry > 0 and !defined($socket->send($str))) {
+      warn "error: $!\n" if $debug;
+      $retry--;
+    }
+  }
+}
+
+sub syntax
+{
+  my $xc = shift;
+
+  print <<EOF;
+Syntax: $0 [options]
+Where options are:
+  -c <config>  set config file (default /etc/spamhausfeed.conf)
+  -d <host>    set destination host
+  -p <port>    set destination port
+  -l <logfile> mail log file to read
+  -P <pidfile> where to write PID file to
+  -D <num>     enable debugging (implies -f)
+  -f           run in foreground, do not daemonise
+  -n           dry run - don't actually send UDP packets
+  -h           show this information
+
+Current config file: $configfile
+EOF
+
+  exit($xc);
 }
 
