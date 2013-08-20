@@ -2,7 +2,7 @@ spamhausfeed (0.3-1) unstable; urgency=low
 
   * Update examples: better defaults, and hopefully make things clearer
 
- -- Matthew Newton <mcn4@matthew.cc.le.ac.uk>  Fri, 02 Aug 2013 14:56:16 +0100
+ -- Matthew Newton <mcn4@le.ac.uk>  Fri, 02 Aug 2013 14:56:16 +0100
 
 spamhausfeed (0.2-1) unstable; urgency=low
 
