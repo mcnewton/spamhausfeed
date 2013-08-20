@@ -22,13 +22,15 @@ PNAME="spamhausfeed"
 
 test -f $DAEMON || exit 0
 
+SPAMHAUSFEED_OPTIONS=""
+
 set -e
 
 case "$1" in
   start)
 	echo -n "Starting $DESC: "
 	start-stop-daemon --start --pidfile $PIDFILE --name $PNAME \
-	    $NICE --oknodo --startas $DAEMON -- $OPTIONS $DOPTIONS
+	    $NICE --oknodo --startas $DAEMON -- $SPAMHAUSFEED_OPTIONS
 	echo "$NAME."
 	;;
 
@@ -49,7 +51,7 @@ case "$1" in
 	start-stop-daemon --stop --pidfile $PIDFILE --name $PNAME \
 	    --retry 5 --oknodo
 	start-stop-daemon --start --pidfile $PIDFILE --name $PNAME \
-	    $NICE --oknodo --startas $DAEMON -- $OPTIONS $DOPTIONS
+	    $NICE --oknodo --startas $DAEMON -- $SPAMHAUSFEED_OPTIONS
 
 	echo "$NAME."
 	;;

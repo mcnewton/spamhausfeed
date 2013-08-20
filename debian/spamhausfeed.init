@@ -22,6 +22,8 @@ PNAME="spamhausfeed"
 
 test -f $DAEMON || exit 0
 
+SPAMHAUSFEED_OPTIONS=""
+
 [ -f /etc/default/spamhausfeed ] && . /etc/default/spamhausfeed
 
 set -e
@@ -64,4 +66,3 @@ case "$1" in
 esac
 
 exit 0
-
