@@ -127,6 +127,13 @@ Remember to add the SHF lines to the mail logs as well as
 installing the package.
 
 
+Credits
+=======
+
+Thanks to Ben Charlton <b.c.charlton@kent.ac.uk> for contributing
+the RPM packaging.
+
+
 Matthew Newton
 University of Leicester
 2013-05-02
